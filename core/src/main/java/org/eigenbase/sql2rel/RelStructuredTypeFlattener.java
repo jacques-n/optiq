@@ -84,10 +84,10 @@ public class RelStructuredTypeFlattener implements ReflectiveVisitor {
 
   //~ Constructors -----------------------------------------------------------
 
-  public RelStructuredTypeFlattener(RexBuilder rexBuilder) {
+  public RelStructuredTypeFlattener(RexBuilder rexBuilder, RelOptTable.ToRelContext toRelContext) {
     this.rexBuilder = rexBuilder;
-    visitor = new RewriteRelVisitor();
-    toRelContext = null; // TODO:
+    this.visitor = new RewriteRelVisitor();
+    this.toRelContext = toRelContext;
   }
 
   //~ Methods ----------------------------------------------------------------
