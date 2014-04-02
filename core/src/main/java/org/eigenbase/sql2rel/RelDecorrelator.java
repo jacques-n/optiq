@@ -164,8 +164,11 @@ public class RelDecorrelator implements ReflectiveVisitor {
     HepPlanner planner = createPlanner(program);
 
     planner.setRoot(root);
+    System.out.println("Prior to adjust count() expression");
+    System.out.println(RelOptUtil.toString(root));
     root = planner.findBestExp();
-
+    System.out.println("After adjust count() expression");
+    System.out.print(RelOptUtil.toString(root));
     // Perform decorrelation.
     mapOldToNewRel.clear();
     mapNewRelToMapCorVarToOutputPos.clear();
@@ -175,9 +178,12 @@ public class RelDecorrelator implements ReflectiveVisitor {
 
     if (mapOldToNewRel.containsKey(root)) {
       // has been rewritten
+      System.out.println("Visitor changed plan.");
+      System.out.print(RelOptUtil.toString( mapOldToNewRel.get(root)));
       return mapOldToNewRel.get(root);
     } else {
       // not rewritten
+      System.out.println("Didn't change when visiting.");
       return root;
     }
   }

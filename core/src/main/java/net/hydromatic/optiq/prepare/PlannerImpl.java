@@ -227,6 +227,10 @@ public class PlannerImpl implements Planner {
   private RexBuilder createRexBuilder() {
     return new RexBuilder(typeFactory);
   }
+  
+  public JavaTypeFactory getTypeFactory() {
+    return typeFactory;
+  }
 
   public RelNode transform(int ruleSetIndex, RelTraitSet requiredOutputTraits,
       RelNode rel) throws RelConversionException {

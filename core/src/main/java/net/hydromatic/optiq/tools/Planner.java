@@ -19,6 +19,7 @@ package net.hydromatic.optiq.tools;
 
 import org.eigenbase.rel.RelNode;
 import org.eigenbase.relopt.RelTraitSet;
+import org.eigenbase.reltype.RelDataTypeFactory;
 import org.eigenbase.sql.SqlNode;
 import org.eigenbase.sql.parser.SqlParseException;
 
@@ -63,6 +64,9 @@ public interface Planner {
    */
   RelNode convert(SqlNode sql) throws RelConversionException;
 
+  
+  RelDataTypeFactory getTypeFactory();
+  
   /**
    * Converts one relational expression tree into another relational expression
    * based on a particular rule set and requires set of traits.
