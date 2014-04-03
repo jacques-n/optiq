@@ -340,13 +340,13 @@ public class RelStructuredTypeFlattener implements ReflectiveVisitor {
         throw Util.needToImplement("sorting on structured types");
       }
     }
-
+    RelCollation newCollation = RexUtil.apply(mapping, oldCollation);
     SortRel newRel =
         new SortRel(
             rel.getCluster(),
-            rel.getCluster().traitSetOf(Convention.NONE),
+            rel.getCluster().traitSetOf(Convention.NONE).plus(newCollation),
             newChild,
-            RexUtil.apply(mapping, oldCollation));
+            newCollation);
     setNewForOldRel(rel, newRel);
   }
 
