@@ -90,7 +90,8 @@ public class SqlTypeExplicitPrecedenceList
   //~ Constructors -----------------------------------------------------------
 
   public SqlTypeExplicitPrecedenceList(List<SqlTypeName> typeNames) {
-    this.typeNames = ImmutableList.copyOf(typeNames);
+    this.typeNames = new ArrayList();
+    this.typeNames.addAll(typeNames);
   }
 
   //~ Methods ----------------------------------------------------------------
