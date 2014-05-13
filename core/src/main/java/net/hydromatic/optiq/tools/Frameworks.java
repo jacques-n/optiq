@@ -66,7 +66,7 @@ public class Frameworks {
 
     public PrepareAction() {
       this.config = StdFrameworkConfig.newBuilder() //
-          .defaultSchema(Frameworks.createRootSchema()).build();
+          .defaultSchema(Frameworks.createRootSchema(true)).build();
     }
 
     public PrepareAction(FrameworkConfig config) {
@@ -107,7 +107,7 @@ public class Frameworks {
    */
   public static <R> R withPlanner(final PlannerAction<R> action) {
     FrameworkConfig config = StdFrameworkConfig.newBuilder() //
-        .defaultSchema(Frameworks.createRootSchema()).build();
+        .defaultSchema(Frameworks.createRootSchema(true)).build();
     return withPlanner(action, config);
   }
 
@@ -136,9 +136,12 @@ public class Frameworks {
 
   /**
    * Creates a root schema.
+   *
+   * @param addMetadataSchema Whether to add "metadata" schema containing
+   *    definitions of tables, columns etc.
    */
-  public static SchemaPlus createRootSchema() {
-    return OptiqSchema.createRootSchema().plus();
+  public static SchemaPlus createRootSchema(boolean addMetadataSchema) {
+    return OptiqSchema.createRootSchema(addMetadataSchema).plus();
   }
 }
 
