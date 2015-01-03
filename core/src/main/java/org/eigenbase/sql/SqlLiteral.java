@@ -193,6 +193,8 @@ public class SqlLiteral extends SqlNode {
     case CHAR:
       return value instanceof NlsString;
 
+    case MAP:
+      return value instanceof Map;
     case SYMBOL:
 
       return (value instanceof SqlSymbol)

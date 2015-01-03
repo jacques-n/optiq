@@ -224,6 +224,8 @@ public class RexLiteral extends RexNode {
           && (((NlsString) value).getCollation() != null);
     case SYMBOL:
       return value instanceof Enum;
+    case MAP:
+      return value instanceof Map;
     case ANY:
       // Literal of type ANY is not legal. "CAST(2 AS ANY)" remains
       // an integer literal surrounded by a cast function.
@@ -342,6 +344,9 @@ public class RexLiteral extends RexNode {
         assert value == null;
         pw.print("null");
       }
+      break;
+    case MAP:
+      pw.print(value.toString());
       break;
     default:
       assert valueMatchesType(value, typeName, true);

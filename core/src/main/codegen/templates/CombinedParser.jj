@@ -5228,12 +5228,16 @@ String CommonNonReservedKeyWord() :
 {
     < LPAREN: "(">
     | < RPAREN: ")">
-    | < LBRACE_D: "{" (" ")* ["d","D"] >
-    | < LBRACE_T: "{" (" ")* ["t","T"] >
-    | < LBRACE_TS: "{" (" ")* ["t","T"] ["s","S"] >
-    | < LBRACE_FN: "{" (" ")* ["f","F"] ["n","N"] >
+    | < LBRACE_D: "{" (" ")* ["d","D"] " ">
+    | < LBRACE_T: "{" (" ")* ["t","T"] " ">
+    | < LBRACE_TS: "{" (" ")* ["t","T"] ["s","S"] " ">
+    | < LBRACE_FN: "{" (" ")* ["f","F"] ["n","N"] " ">
+    <#if parser.includeBraces >
     | < LBRACE: "{" >
     | < RBRACE: "}" >
+    <#else>
+      <#include "/@includes/braces.ftl" />
+    </#if>
     | < LBRACKET: "[" >
     | < RBRACKET: "]" >
     | < SEMICOLON: ";" >
@@ -5278,6 +5282,11 @@ TOKEN_MGR_DECLS : {
     void popState() {
       SwitchTo(lexicalStateStack.remove(lexicalStateStack.size() - 1));
     }
+    
+    <#if parser.includeAdditionalDeclarations>
+      <#include "/@includes/tokenManagerDeclarations.ftl" />
+    </#if>
+    
 }
 
 /*
@@ -5289,12 +5298,16 @@ BTID:    Identifiers are enclosed in back-ticks, e.g. `My Identifier`
 IN_SINGLE_LINE_COMMENT:
 IN_FORMAL_COMMENT:
 IN_MULTI_LINE_COMMENT:
+IN_BRACES:
 
 DEFAULT, DQID, BTID are the 3 'normal states'. Behavior is identical except
 for how quoted identifiers are recognized.
 
 After a comment has completed, the lexer returns to the previous state, one
 of the 'normal states'.
+
+IN_BRACES is a lexical state that is entered when the tokenizer sees an 
+opening brace that doesn't match the ODBC brace format.  In this case 
 */
 
 /* WHITE SPACE */
@@ -5347,6 +5360,9 @@ MORE :
 {
     < ~[] >
 }
+
+
+
 
 
 /* IDENTIFIERS */
