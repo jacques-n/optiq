@@ -1186,6 +1186,11 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
     pw.println();
   }
 
+  /** Computes the key for {@link #mapDigestToRel}. */
+  private static Pair<String, RelDataType> key(RelNode rel) {
+    return Pair.of(rel.getDigest(), rel.getRowType());
+  }
+
   /**
    * Re-computes the digest of a {@link RelNode}.
    *
@@ -1206,7 +1211,7 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
       LOGGER.finer(
           "Rename #" + rel.getId() + " from '" + oldDigest
           + "' to '" + newDigest + "'");
-      Pair<String, RelDataType> key = Pair.of(newDigest, rel.getRowType());
+      final Pair<String, RelDataType> key = key(rel);
       final RelNode equivRel = mapDigestToRel.put(key, rel);
       if (equivRel != null) {
         assert equivRel != rel;
@@ -1261,8 +1266,9 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
     // Is there an equivalent relational expression? (This might have
     // just occurred because the relational expression's child was just
     // found to be equivalent to another set.)
-    RelNode equivRel = mapDigestToRel.get(rel.getDigest());
-    if ((equivRel != null) && (equivRel != rel)) {
+    final Pair<String, RelDataType> key = key(rel);
+    RelNode equivRel = mapDigestToRel.get(key);
+    if (equivRel != null && equivRel != rel) {
       assert equivRel.getClass() == rel.getClass();
       assert equivRel.getTraitSet().equals(rel.getTraitSet());
 
@@ -1459,7 +1465,7 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
 
     // If it is equivalent to an existing expression, return the set that
     // the equivalent expression belongs to.
-    Pair<String, RelDataType> key = Pair.of(rel.getDigest(), rel.getRowType());
+    Pair<String, RelDataType> key = key(rel);
     RelNode equivExp = mapDigestToRel.get(key);
     if (equivExp == null) {
       // do nothing
@@ -1504,7 +1510,7 @@ public class VolcanoPlanner extends AbstractRelOptPlanner {
         // expression.
         if (fixUpInputs(rel)) {
           rel.recomputeDigest();
-          key = Pair.of(rel.getDigest(), rel.getRowType());
+          key = key(rel);
           RelNode equivRel = mapDigestToRel.get(key);
           if ((equivRel != rel) && (equivRel != null)) {
             // make sure this bad rel didn't get into the

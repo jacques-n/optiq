@@ -1466,6 +1466,139 @@ public class JdbcTest {
             "hire_date=1994-12-01 00:00:00; end_date=null; birth_date=1961-08-26\n");
   }
 
+  @Test public void testReuseExpressionWhenNullChecking() {
+    OptiqAssert.that()
+        .with(OptiqAssert.Config.REGULAR)
+        .query(
+            "select upper((case when \"empid\">\"deptno\"*10 then 'y' else null end)) T from \"hr\".\"emps\"")
+        .planContains(
+            "static final String $L4J$C$net_hydromatic_optiq_runtime_SqlFunctions_upper_y_ = "
+            + "net.hydromatic.optiq.runtime.SqlFunctions.upper(\"y\");")
+        .planContains(
+            "return current.empid <= current.deptno * 10 "
+            + "? (String) null "
+            + ": $L4J$C$net_hydromatic_optiq_runtime_SqlFunctions_upper_y_;")
+        .returns("T=null\n"
+                 + "T=null\n"
+                 + "T=Y\n"
+                 + "T=Y\n");
+  }
+
+  @Test public void testReuseExpressionWhenNullChecking2() {
+    OptiqAssert.that()
+        .with(OptiqAssert.Config.REGULAR)
+        .query(
+            "select upper((case when \"empid\">\"deptno\"*10 then \"name\" end)) T from \"hr\".\"emps\"")
+        .planContains(
+            "final String inp2_ = current.name;")
+        .planContains(
+            "return current.empid <= current.deptno * 10 "
+            + "|| inp2_ == null "
+            + "? (String) null "
+            + ": net.hydromatic.optiq.runtime.SqlFunctions.upper(inp2_);")
+        .returns("T=null\n"
+                 + "T=null\n"
+                 + "T=SEBASTIAN\n"
+                 + "T=THEODORE\n");
+  }
+
+  @Test public void testReuseExpressionWhenNullChecking3() {
+    OptiqAssert.that()
+        .with(OptiqAssert.Config.REGULAR)
+        .query(
+            "select substring(\"name\", \"deptno\"+case when user <> 'sa' then 1 end) from \"hr\".\"emps\"")
+        .planContains(
+            "final String inp2_ = current.name;")
+        .planContains(
+            "static final boolean $L4J$C$net_hydromatic_optiq_runtime_SqlFunctions_ne_sa_sa_ = "
+            + "net.hydromatic.optiq.runtime.SqlFunctions.ne(\"sa\", \"sa\");")
+        .planContains(
+            "static final boolean $L4J$C$_net_hydromatic_optiq_runtime_SqlFunctions_ne_sa_sa_ = "
+            + "!$L4J$C$net_hydromatic_optiq_runtime_SqlFunctions_ne_sa_sa_;")
+        .planContains(
+            "return inp2_ == null || $L4J$C$_net_hydromatic_optiq_runtime_SqlFunctions_ne_sa_sa_ ? (String) null"
+            + " : net.hydromatic.optiq.runtime.SqlFunctions.substring(inp2_, "
+            + "current.deptno + 1);");
+  }
+
+  @Test public void testReuseExpressionWhenNullChecking4() {
+    OptiqAssert.that()
+        .with(OptiqAssert.Config.REGULAR)
+        .query(
+            "select substring(trim(\n"
+            + "substring(\"name\",\n"
+            + "  \"deptno\"*0+case when user = 'sa' then 1 end)\n"
+            + "), case when \"empid\">\"deptno\" then 4\n" /* diff from 5 */
+            + "   else\n"
+            + "     case when \"deptno\"*8>8 then 5 end\n"
+            + "   end-2) T\n"
+            + "from\n"
+            + "\"hr\".\"emps\"")
+        .planContains(
+            "final String inp2_ = current.name;")
+        .planContains(
+            "final int inp1_ = current.deptno;")
+        .planContains(
+            "static final boolean $L4J$C$net_hydromatic_optiq_runtime_SqlFunctions_eq_sa_sa_ = "
+            + "net.hydromatic.optiq.runtime.SqlFunctions.eq(\"sa\", \"sa\");")
+        .planContains(
+            "static final boolean $L4J$C$_net_hydromatic_optiq_runtime_SqlFunctions_eq_sa_sa_ = "
+            + "!$L4J$C$net_hydromatic_optiq_runtime_SqlFunctions_eq_sa_sa_;")
+        .planContains(
+            "return inp2_ == null "
+            + "|| $L4J$C$_net_hydromatic_optiq_runtime_SqlFunctions_eq_sa_sa_ "
+            + "|| !v5 && inp1_ * 8 <= 8 "
+            + "? (String) null "
+            + ": net.hydromatic.optiq.runtime.SqlFunctions.substring("
+            + "net.hydromatic.optiq.runtime.SqlFunctions.trim(true, true, \" \", "
+            + "net.hydromatic.optiq.runtime.SqlFunctions.substring(inp2_, "
+            + "inp1_ * 0 + 1)), (v5 ? 4 : 5) - 2);")
+        .returns("T=ill\n"
+                 + "T=ric\n"
+                 + "T=ebastian\n"
+                 + "T=heodore\n");
+  }
+
+  @Test public void testReuseExpressionWhenNullChecking5() {
+    OptiqAssert.that()
+        .with(OptiqAssert.Config.REGULAR)
+        .query(
+            "select substring(trim(\n"
+            + "substring(\"name\",\n"
+            + "  \"deptno\"*0+case when user = 'sa' then 1 end)\n"
+            + "), case when \"empid\">\"deptno\" then 5\n" /* diff from 4 */
+            + "   else\n"
+            + "     case when \"deptno\"*8>8 then 5 end\n"
+            + "   end-2) T\n"
+            + "from\n"
+            + "\"hr\".\"emps\"")
+        .planContains(
+            "final String inp2_ = current.name;")
+        .planContains(
+            "final int inp1_ = current.deptno;")
+        .planContains(
+            "static final int $L4J$C$5_2 = 5 - 2;")
+        .planContains(
+            "static final boolean $L4J$C$net_hydromatic_optiq_runtime_SqlFunctions_eq_sa_sa_ = "
+            + "net.hydromatic.optiq.runtime.SqlFunctions.eq(\"sa\", \"sa\");")
+        .planContains(
+            "static final boolean $L4J$C$_net_hydromatic_optiq_runtime_SqlFunctions_eq_sa_sa_ = "
+            + "!$L4J$C$net_hydromatic_optiq_runtime_SqlFunctions_eq_sa_sa_;")
+        .planContains(
+            "return inp2_ == null "
+            + "|| $L4J$C$_net_hydromatic_optiq_runtime_SqlFunctions_eq_sa_sa_ "
+            + "|| current.empid <= inp1_ && inp1_ * 8 <= 8 "
+            + "? (String) null "
+            + ": net.hydromatic.optiq.runtime.SqlFunctions.substring("
+            + "net.hydromatic.optiq.runtime.SqlFunctions.trim(true, true, \" \", "
+            + "net.hydromatic.optiq.runtime.SqlFunctions.substring(inp2_, "
+            + "inp1_ * 0 + 1)), $L4J$C$5_2);")
+        .returns("T=ll\n"
+                 + "T=ic\n"
+                 + "T=bastian\n"
+                 + "T=eodore\n");
+  }
+
   @Test public void testValues() {
     OptiqAssert.that()
         .query("values (1), (2)")
@@ -2302,6 +2435,118 @@ public class JdbcTest {
             "empid=110; deptno=10; name=Theodore; salary=11500.0; commission=250");
   }
 
+  /** Tests a correlated scalar sub-query in the SELECT clause.
+   *
+   * <p>Note that there should be an extra row "empid=200; deptno=20;
+   * DNAME=null" but left join doesn't work.</p> */
+  @Test public void testScalarSubQuery() {
+    OptiqAssert.that()
+        .with(OptiqAssert.Config.REGULAR)
+        .query(
+            "select \"empid\", \"deptno\",\n"
+            + " (select \"name\" from \"hr\".\"depts\"\n"
+            + "  where \"deptno\" = e.\"deptno\") as dname\n"
+            + "from \"hr\".\"emps\" as e")
+        .returnsUnordered("empid=100; deptno=10; DNAME=Sales",
+            "empid=110; deptno=10; DNAME=Sales",
+            "empid=150; deptno=10; DNAME=Sales",
+            "empid=200; deptno=20; DNAME=null");
+  }
+
+  @Test public void testLeftJoin() {
+    OptiqAssert.that()
+        .with(OptiqAssert.Config.REGULAR)
+        .query(
+            "select e.\"deptno\", d.\"deptno\"\n"
+            + "from \"hr\".\"emps\" as e\n"
+            + "  left join \"hr\".\"depts\" as d using (\"deptno\")")
+        .returnsUnordered(
+            "deptno=10; deptno=10",
+            "deptno=10; deptno=10",
+            "deptno=10; deptno=10",
+            "deptno=20; deptno=null");
+  }
+
+  @Test public void testFullJoin() {
+    OptiqAssert.that()
+        .with(OptiqAssert.Config.REGULAR)
+        .query(
+            "select e.\"deptno\", d.\"deptno\"\n"
+            + "from \"hr\".\"emps\" as e\n"
+            + "  full join \"hr\".\"depts\" as d using (\"deptno\")")
+        .returnsUnordered(
+            "deptno=10; deptno=10",
+            "deptno=10; deptno=10",
+            "deptno=10; deptno=10",
+            "deptno=20; deptno=null",
+            "deptno=null; deptno=30",
+            "deptno=null; deptno=40");
+  }
+
+  @Test public void testRightJoin() {
+    OptiqAssert.that()
+        .with(OptiqAssert.Config.REGULAR)
+        .query(
+            "select e.\"deptno\", d.\"deptno\"\n"
+            + "from \"hr\".\"emps\" as e\n"
+            + "  right join \"hr\".\"depts\" as d using (\"deptno\")")
+        .returnsUnordered(
+            "deptno=10; deptno=10",
+            "deptno=10; deptno=10",
+            "deptno=10; deptno=10",
+            "deptno=null; deptno=30",
+            "deptno=null; deptno=40");
+  }
+
+  @Test public void testScalarSubQueryUncorrelated() {
+    OptiqAssert.that()
+        .with(OptiqAssert.Config.REGULAR)
+        .query(
+            "select \"empid\", \"deptno\",\n"
+            + " (select \"name\" from \"hr\".\"depts\"\n"
+            + "  where \"deptno\" = 30) as dname\n"
+            + "from \"hr\".\"emps\" as e")
+        .returnsUnordered("empid=100; deptno=10; DNAME=Marketing",
+            "empid=110; deptno=10; DNAME=Marketing",
+            "empid=150; deptno=10; DNAME=Marketing",
+            "empid=200; deptno=20; DNAME=Marketing");
+  }
+
+  @Test public void testScalarSubQueryInCase() {
+    OptiqAssert.that()
+        .with(OptiqAssert.Config.REGULAR)
+        .query(
+            "select e.\"name\",\n"
+            + " (CASE e.\"deptno\"\n"
+            + "  WHEN (Select \"deptno\" from \"hr\".\"depts\" d\n"
+            + "        where d.\"deptno\" = e.\"deptno\")\n"
+            + "  THEN (Select d.\"name\" from \"hr\".\"depts\" d\n"
+            + "        where d.\"deptno\" = e.\"deptno\")\n"
+            + "  ELSE 'DepartmentNotFound'  END ) AS DEPTNAME\n"
+            + "from \"hr\".\"emps\" e")
+        .returnsUnordered("name=Bill; DEPTNAME=Sales",
+            "name=Eric; DEPTNAME=DepartmentNotFound",
+            "name=Sebastian; DEPTNAME=Sales",
+            "name=Theodore; DEPTNAME=Sales");
+  }
+
+  @Test public void testScalarSubQueryInCase2() {
+    OptiqAssert.that()
+        .with(OptiqAssert.Config.REGULAR)
+        .query(
+            "select e.\"name\",\n"
+            + " (CASE WHEN e.\"deptno\" = (\n"
+            + "    Select \"deptno\" from \"hr\".\"depts\" d\n"
+            + "    where d.\"name\" = 'Sales')\n"
+            + "  THEN 'Sales'\n"
+            + "  ELSE 'Not Matched'  END ) AS DEPTNAME\n"
+            + "from \"hr\".\"emps\" e")
+        .returnsUnordered("name=Bill; DEPTNAME=Sales      ",
+            "name=Eric; DEPTNAME=Not Matched",
+            "name=Sebastian; DEPTNAME=Sales      ",
+            "name=Theodore; DEPTNAME=Sales      ");
+  }
+
   /** Tests the TABLES table in the information schema. */
   @Test public void testMetaTables() {
     OptiqAssert.that()
@@ -2845,6 +3090,12 @@ public class JdbcTest {
     with.query(
         "select \"name\" as p from \"adhoc\".EMPLOYEES\n"
         + "where \"adhoc\".my_str(\"name\") is null")
+        .returns(
+            "");
+    with.query(
+        "select \"name\" as p from \"adhoc\".EMPLOYEES\n"
+        + "where \"adhoc\".my_str(upper(\"adhoc\".my_str(\"name\")"
+        + ")) ='8'")
         .returns(
             "");
   }
@@ -3539,9 +3790,9 @@ public class JdbcTest {
     final OptiqAssert.AssertThat with =
         OptiqAssert.that().with(ImmutableMap.of("lex", "MYSQL"));
     with.query("select COUNT(*) as c from metaData.tAbles")
-        .returns("c=3\n");
+        .returns("c=2\n");
     with.query("select COUNT(*) as c from `metaData`.`tAbles`")
-        .returns("c=3\n");
+        .returns("c=2\n");
 
     // case-sensitive gives error
     final OptiqAssert.AssertThat with2 =
@@ -3612,6 +3863,104 @@ public class JdbcTest {
     } finally {
       hook.close();
     }
+  }
+
+  @Test public void testSchemaCaching() throws Exception {
+    final OptiqConnection connection = OptiqAssert.getConnection(false);
+    final SchemaPlus rootSchema = connection.getRootSchema();
+
+    // create schema "/a"
+    final Map<String, Schema> aSubSchemaMap = new HashMap<String, Schema>();
+    final SchemaPlus aSchema = rootSchema.add("a", new AbstractSchema() {
+      @Override protected Map<String, Schema> getSubSchemaMap() {
+        return aSubSchemaMap;
+      }
+    });
+    aSchema.setCacheEnabled(true);
+    assertThat(aSchema.getSubSchemaNames().size(), is(0));
+
+    // AbstractSchema never thinks its contents have changed; subsequent tests
+    // assume this
+    assertThat(aSchema.contentsHaveChangedSince(-1, 1), equalTo(false));
+    assertThat(aSchema.contentsHaveChangedSince(1, 1), equalTo(false));
+
+    // first call, to populate the cache
+    assertThat(aSchema.getSubSchemaNames().size(), is(0));
+
+    // create schema "/a/b1". Appears only when we disable caching.
+    aSubSchemaMap.put("b1", new AbstractSchema());
+    assertThat(aSchema.getSubSchemaNames().size(), is(0));
+    assertThat(aSchema.getSubSchema("b1"), nullValue());
+    aSchema.setCacheEnabled(false);
+    assertThat(aSchema.getSubSchemaNames().size(), is(1));
+    assertThat(aSchema.getSubSchema("b1"), notNullValue());
+
+    // create schema "/a/b2". Appears immediately, because caching is disabled.
+    aSubSchemaMap.put("b2", new AbstractSchema());
+    assertThat(aSchema.getSubSchemaNames().size(), is(2));
+
+    // an explicit sub-schema appears immediately, even if caching is enabled
+    aSchema.setCacheEnabled(true);
+    assertThat(aSchema.getSubSchemaNames().size(), is(2));
+    aSchema.add("b3", new AbstractSchema()); // explicit
+    aSubSchemaMap.put("b4", new AbstractSchema()); // implicit
+    assertThat(aSchema.getSubSchemaNames().size(), is(3));
+    aSchema.setCacheEnabled(false);
+    assertThat(aSchema.getSubSchemaNames().size(), is(4));
+    for (String name : aSchema.getSubSchemaNames()) {
+      assertThat(aSchema.getSubSchema(name), notNullValue());
+    }
+
+    // create schema "/a2"
+    final Map<String, Schema> a2SubSchemaMap = new HashMap<String, Schema>();
+    final boolean[] changed = {false};
+    final SchemaPlus a2Schema = rootSchema.add("a", new AbstractSchema() {
+      @Override protected Map<String, Schema> getSubSchemaMap() {
+        return a2SubSchemaMap;
+      }
+      @Override
+      public boolean contentsHaveChangedSince(long lastCheck, long now) {
+        return changed[0];
+      }
+    });
+    a2Schema.setCacheEnabled(true);
+    assertThat(a2Schema.getSubSchemaNames().size(), is(0));
+
+    // create schema "/a2/b3". Appears only when we mark the schema changed.
+    a2SubSchemaMap.put("b3", new AbstractSchema());
+    assertThat(a2Schema.getSubSchemaNames().size(), is(0));
+    Thread.sleep(1);
+    assertThat(a2Schema.getSubSchemaNames().size(), is(0));
+    changed[0] = true;
+    assertThat(a2Schema.getSubSchemaNames().size(), is(1));
+    changed[0] = false;
+
+    // or if we disable caching
+    a2SubSchemaMap.put("b4", new AbstractSchema());
+    assertThat(a2Schema.getSubSchemaNames().size(), is(1));
+    a2Schema.setCacheEnabled(false);
+    a2Schema.setCacheEnabled(true);
+    assertThat(a2Schema.getSubSchemaNames().size(), is(2));
+    for (String name : aSchema.getSubSchemaNames()) {
+      assertThat(aSchema.getSubSchema(name), notNullValue());
+    }
+
+    // add tables and retrieve with various case sensitivities
+    final TableInRootSchemaTest.SimpleTable table =
+        new TableInRootSchemaTest.SimpleTable();
+    a2Schema.add("table1", table);
+    a2Schema.add("TABLE1", table);
+    a2Schema.add("tabLe1", table);
+    a2Schema.add("tabLe2", table);
+    assertThat(a2Schema.getTableNames().size(), equalTo(4));
+    final OptiqSchema a2OptiqSchema = OptiqSchema.from(a2Schema);
+    assertThat(a2OptiqSchema.getTable("table1", true), notNullValue());
+    assertThat(a2OptiqSchema.getTable("table1", false), notNullValue());
+    assertThat(a2OptiqSchema.getTable("taBle1", true), nullValue());
+    assertThat(a2OptiqSchema.getTable("taBle1", false), notNullValue());
+    final TableMacro function = ViewTable.viewMacro(a2Schema, "values 1", null);
+
+    connection.close();
   }
 
   // Disable checkstyle, so it doesn't complain about fields like "customer_id".

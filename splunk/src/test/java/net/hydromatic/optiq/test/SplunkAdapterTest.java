@@ -17,11 +17,19 @@
 */
 package net.hydromatic.optiq.test;
 
+import com.google.common.base.Function;
+import com.google.common.collect.ImmutableSet;
+
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.io.PrintStream;
 import java.sql.*;
-import java.util.Properties;
+import java.util.*;
+
+import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.is;
+import static org.junit.Assert.*;
 
 /**
  * Unit test of the Optiq adapter for Splunk.
@@ -31,10 +39,16 @@ public class SplunkAdapterTest {
   public static final String SPLUNK_USER = "admin";
   public static final String SPLUNK_PASSWORD = "changeme";
 
+  /** Whether to run Splunk tests. Disabled by default, because we do not expect
+   * Splunk to be installed and populated data set. To enable,
+   * specify {@code -Doptiq.test.splunk=true} on the Java command line. */
+  public static final boolean ENABLED =
+      Boolean.getBoolean("optiq.test.splunk");
+
   /** Whether this test is enabled. Tests are disabled unless we know that
    * Splunk is present and loaded with the requisite data. */
   private boolean enabled() {
-    return false;
+    return ENABLED;
   }
 
   private void loadDriverClass() {
@@ -168,32 +182,94 @@ public class SplunkAdapterTest {
   @Test public void testSelect() throws SQLException {
     checkSql(
         "select \"source\", \"sourcetype\"\n"
-        + "from \"splunk\".\"splunk\"");
+        + "from \"splunk\".\"splunk\"",
+        new Function<ResultSet, Void>() {
+          public Void apply(ResultSet a0) {
+            try {
+              if (!(a0.next() && a0.next() && a0.next())) {
+                throw new AssertionError("expected at least 3 rows");
+              }
+              return null;
+            } catch (SQLException e) {
+              throw new RuntimeException(e);
+            }
+          }
+        });
   }
 
   @Test public void testSelectDistinct() throws SQLException {
     checkSql(
         "select distinct \"sourcetype\"\n"
-        + "from \"splunk\".\"splunk\"");
+        + "from \"splunk\".\"splunk\"",
+        expect("sourcetype=access_combined_wcookie",
+            "sourcetype=vendor_sales",
+            "sourcetype=secure"));
   }
 
-  @Test public void testSql() throws SQLException {
+  private static Function<ResultSet, Void> expect(final String... lines) {
+    final Collection<String> expected = ImmutableSet.copyOf(lines);
+    return new Function<ResultSet, Void>() {
+      public Void apply(ResultSet a0) {
+        try {
+          Collection<String> actual =
+              OptiqAssert.toStringList(a0, new HashSet<String>());
+          assertThat(actual, equalTo(expected));
+          return null;
+        } catch (SQLException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    };
+  }
+
+  /** "status" is not a built-in column but we know it has some values in the
+   * test data. */
+  @Test public void testSelectNonBuiltInColumn() throws SQLException {
+    checkSql(
+        "select \"status\"\n"
+        + "from \"splunk\".\"splunk\"",
+        new Function<ResultSet, Void>() {
+          public Void apply(ResultSet a0) {
+            final Set<String> actual = new HashSet<String>();
+            try {
+              while (a0.next()) {
+                actual.add(a0.getString(1));
+              }
+              assertThat(actual.contains("404"), is(true));
+              return null;
+            } catch (SQLException e) {
+              throw new RuntimeException(e);
+            }
+          }
+        });
+  }
+
+  @Ignore("cannot plan due to CAST in ON clause")
+  @Test public void testJoinToJdbc() throws SQLException {
     checkSql(
         "select p.\"product_name\", /*s.\"product_id\",*/ s.\"action\"\n"
         + "from \"splunk\".\"splunk\" as s\n"
-        + "join \"mysql\".\"products\" as p\n"
-        + "on s.\"product_id\" = p.\"product_id\"\n"
-        + "where s.\"action\" = 'PURCHASE'");
-
-/*
-            "select s.\"eventtype\", count(\"source\") as c\n"
-            + "from \"splunk\".\"splunk\" as s\n"
-            + "group by s.\"eventtype\"\n"
-            + "order by c desc\n";
-*/
+        + "join \"foodmart\".\"product\" as p\n"
+        + "on cast(s.\"product_id\" as integer) = p.\"product_id\"\n"
+        + "where s.\"action\" = 'PURCHASE'",
+        null);
   }
 
-  private void checkSql(String sql) throws SQLException {
+  @Test public void testGroupBy() throws SQLException {
+    checkSql(
+        "select s.\"host\", count(\"source\") as c\n"
+        + "from \"splunk\".\"splunk\" as s\n"
+        + "group by s.\"host\"\n"
+        + "order by c desc\n",
+        expect("host=vendor_sales; C=30244",
+            "host=www1; C=24221",
+            "host=www3; C=22975",
+            "host=www2; C=22595",
+            "host=mailsv; C=9829"));
+  }
+
+  private void checkSql(String sql, Function<ResultSet, Void> f)
+    throws SQLException {
     loadDriverClass();
     Connection connection = null;
     Statement statement = null;
@@ -202,22 +278,22 @@ public class SplunkAdapterTest {
       info.put("url", SPLUNK_URL);
       info.put("user", SPLUNK_USER);
       info.put("password", SPLUNK_PASSWORD);
+      info.put("model", "inline:" + JdbcTest.FOODMART_MODEL);
       connection = DriverManager.getConnection("jdbc:splunk:", info);
       statement = connection.createStatement();
       if (!enabled()) {
         return;
       }
-      final ResultSet resultSet =
-          statement.executeQuery(
-              sql);
-      output(resultSet, System.out);
+      final ResultSet resultSet = statement.executeQuery(sql);
+      f.apply(resultSet);
+      resultSet.close();
     } finally {
       close(connection, statement);
     }
   }
 
-  private void output(
-      ResultSet resultSet, PrintStream out) throws SQLException {
+  private void output(ResultSet resultSet, PrintStream out)
+    throws SQLException {
     final ResultSetMetaData metaData = resultSet.getMetaData();
     final int columnCount = metaData.getColumnCount();
     while (resultSet.next()) {

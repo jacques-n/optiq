@@ -15,30 +15,21 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 */
-package org.eigenbase.util;
+package net.hydromatic.optiq.test;
 
-import java.util.*;
+import net.hydromatic.optiq.impl.tpch.TpchTest;
+
+import org.junit.runner.RunWith;
+import org.junit.runners.Suite;
 
 /**
- * StringRepresentationComparator compares two objects by comparing their {@link
- * Object#toString()} representations.
+ * Suite consisting of all tests in the <code>optiq-plus</code> module.
  */
-public class StringRepresentationComparator<T> implements Comparator<T> {
-  //~ Methods ----------------------------------------------------------------
-
-  // implement Comparator
-  public int compare(T o1, T o2) {
-    return o1.toString().compareTo(o2.toString());
-  }
-
-  // implement Comparator
-  public boolean equals(Object obj) {
-    return obj.getClass().getName().equals(getClass().getName());
-  }
-
-  public int hashCode() {
-    return getClass().getName().hashCode();
-  }
+@RunWith(Suite.class)
+@Suite.SuiteClasses({
+    TpchTest.class
+})
+public class PlusSuite {
 }
 
-// End StringRepresentationComparator.java
+// End PlusSuite.java
